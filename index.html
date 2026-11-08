@@ -1,22 +1,23 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jamia Competition Hub</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jamia Competition Hub</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa&family=Inter:wght@400;600&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0A1240;--bg:#F6F8FC;--line:#DDE3EE;--mut:#5B6478}
-*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-h1,h2,h3{font-family:Georgia,serif;margin:.2em 0}a{color:var(--ink)}
+:root{color-scheme:dark;--bg:#14110F;--card:#1E1C1A;--line:#38342F;--ink:#E6EAFB;--mut:#A5A9B8;--gold:#C8963E;--navy:#16217A}
+*{box-sizing:border-box}body{margin:0;font:16px/1.55 Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+h1,h2,h3,.brand{font-family:'Libre Baskerville',Georgia,serif;font-weight:700;margin:.4em 0}a{color:#9DB4FF}
 .strip{height:6px;background:linear-gradient(90deg,#1D4ED8 25%,#16A34A 25% 50%,#DC2626 50% 75%,#0A1240 75%)}
-header{background:#fff;border-bottom:1px solid var(--line);padding:12px 16px}
-nav{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
-nav a{padding:6px 12px;border-radius:6px;text-decoration:none}nav a.on{background:var(--ink);color:#fff}
+header{border-bottom:1px solid var(--line);padding:14px 16px}.brand{font-size:22px;margin:0}
+nav{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}nav a{padding:6px 12px;border-radius:6px;text-decoration:none;color:var(--ink)}nav a.on{background:var(--navy)}
 main{max-width:960px;margin:0 auto;padding:16px}
-.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
-.wrap{overflow-x:auto}.b{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-size:13px}
-input,select,textarea,button{font:inherit;padding:8px;border:1px solid var(--line);border-radius:6px;background:#fff;max-width:100%}
-button{background:var(--ink);color:#fff;border-color:var(--ink);cursor:pointer}button.g{background:#fff;color:var(--ink)}
-.bar{height:14px;border-radius:4px;margin-top:8px}.mut{color:var(--mut)}.row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center}.err{color:#B91C1C}
+.hero{text-align:center;padding:34px 8px 26px}.ar{font:400 64px/1.3 'Aref Ruqaa',serif}.hero hr{width:90px;border:0;border-top:2px solid var(--gold);margin:14px auto}.hero h1{font-size:clamp(28px,7vw,50px)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px}.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.gc{border-top:6px solid;margin:0}.big{font:700 40px 'Libre Baskerville',Georgia,serif}.gold{background:#2B1E08;border-color:#4A3410}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-weight:600}
+.wrap{overflow-x:auto}.b{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-size:13px;border:1px solid rgba(255,255,255,.25)}
+input,select,textarea,button,.btn{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:#26231F;color:var(--ink);max-width:100%}
+button,.btn{background:var(--navy);border-color:var(--navy);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}button.g,.btn.g{background:transparent;color:var(--ink);border-color:var(--line)}
+.mut{color:var(--mut)}.row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center}.err{color:#F87171}
 </style></head><body><div class="strip"></div>
-<header><h2>Jamia Competition Hub</h2><div class="mut">Jamia Ahmadiyya International, Ghana — علم و عمل</div><nav id="nav"></nav></header>
+<header><div class="brand">Jamia Competition Hub</div><div class="mut">Jamia Ahmadiyya International, Ghana</div><nav id="nav"></nav></header>
 <main id="app">Loading…</main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -32,7 +33,7 @@ const yrs=()=>{const a=[];for(let i=new Date().getFullYear()+1;i>=2012;i--)a.pus
 const ord=n=>['','1st','2nd','3rd'][n];
 const byName=(a,b)=>a.full_name.localeCompare(b.full_name);
 const rank=a=>{let p=null,r=0;return a.map((x,i)=>{if(x.points!==p){r=i+1;p=x.points}return r})};
-const tbl=(a,rk)=>a.length?`<div class="wrap"><table><tr><th>#</th><th>Student</th><th>Group</th><th>Class</th><th>Points</th></tr>${a.map((s,i)=>`<tr><td>${rk[i]}</td><td><a href="#student/${s.student_id}">${esc(s.full_name)}</a></td><td>${gb(s.group_id)}</td><td>${esc(s.current_class||'')}</td><td>${s.points}</td></tr>`).join('')}</table></div>`:'<p class="mut">No students yet.</p>';
+const tbl=(a,rk)=>a.length?`<div class="wrap"><table><tr><th>#</th><th>Student</th><th>Group</th><th>Class</th><th>Points</th></tr>${a.map((s,i)=>`<tr><td>${rk[i]}</td><td><a href="#student/${s.student_id}">${esc(s.full_name)}</a></td><td>${gb(s.group_id)}</td><td>${esc(s.current_class||'Nil')}</td><td>${s.points}</td></tr>`).join('')}</table></div>`:'<p class="mut">No students yet.</p>';
 async function load(){
  const [g,s,c,r]=await Promise.all([sb.from('groups').select('*').order('name'),sb.from('student_points').select('*').order('points',{ascending:false}).order('full_name'),sb.from('competitions').select('*').order('competition_date',{ascending:false}),sb.from('results').select('*')]);
  G=g.data||[];S=s.data||[];C=c.data||[];R=r.data||[];
@@ -40,28 +41,31 @@ async function load(){
 }
 function navbar(){const h=location.hash||'#home';$('#nav').innerHTML=[['home','Home'],['board','Leaderboard'],['comps','Competitions'],['students','Students'],['admin','Admin']].map(([k,t])=>`<a href="#${k}" class="${h.startsWith('#'+k)?'on':''}">${t}</a>`).join('')}
 async function route(){navbar();const h=(location.hash||'#home').slice(1).split('/');await load();if(rec)return;({home,board,comps,students,admin:adminPage,student:profile}[h[0]]||home)(h[1])}
+const compCard=c=>{const w=R.filter(r=>r.competition_id==c.id),nm=r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<a href="#student/${r.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)}`},pl=w.filter(r=>r.position>0).sort((a,b)=>a.position-b.position),pa=w.filter(r=>!r.position);
+ return `<div class="card"><h3>${esc(c.name)} ${c.status=='draft'?'<span class="mut">(draft)</span>':''}</h3><div class="mut">${esc([c.competition_date,c.academic_session,c.category].filter(Boolean).join(', '))}</div>${esc(c.description||'')}${pl.map(r=>`<div>${ord(r.position)}: ${nm(r)}</div>`).join('')}${pa.length?`<div class="mut">Also took part: ${pa.map(nm).join(', ')}</div>`:''}</div>`};
 function home(){
- const t=G.map(g=>({...g,pts:S.filter(s=>s.group_id==g.id).reduce((a,s)=>a+s.points,0),n:S.filter(s=>s.group_id==g.id).length})),m=Math.max(1,...t.map(x=>x.pts)),top=S.slice(0,10);
- app.innerHTML=`<h1>Knowledge into action. Excellence through competition.</h1><p class="mut">${S.length} students, ${C.filter(c=>c.status=='published').length} competitions</p>
-<div class="grid">${t.map(x=>`<div class="card" style="border-top:5px solid ${esc(x.color)};margin:0"><h3>${esc(x.name)}</h3><div>${x.pts} points, ${x.n} students</div><div class="bar" style="background:${esc(x.color)};width:${x.pts/m*100}%"></div></div>`).join('')}</div>
-<div class="card"><h3>Top 10 students</h3>${tbl(top,rank(top))}</div>
-<div class="card mut">Scoring: 1st place 3 points, 2nd place 2, 3rd place 1. A group's total is the sum of its students' points.</div>`}
+ const t=G.map(g=>({...g,pts:S.filter(s=>s.group_id==g.id).reduce((a,s)=>a+s.points,0),n:S.filter(s=>s.group_id==g.id).length})).sort((a,b)=>b.pts-a.pts),top=S.filter(s=>s.points>0).slice(0,10),pub=C.filter(c=>c.status=='published'),ses=new Set(pub.map(c=>c.academic_session).filter(Boolean)).size;
+ app.innerHTML=`<div class="hero"><div class="ar">علم و عمل</div><hr><h1>Jamia Competition Hub</h1><p class="mut">Knowledge into action. Excellence through competition.</p><div class="row" style="justify-content:center"><a class="btn" href="#board">View leaderboard</a><a class="btn g" href="#comps">Competitions</a></div></div>
+<div class="grid">${[[S.length,'Registered students'],[pub.length,'Competitions'],[G.length,'Groups'],[ses,'Academic sessions']].map(([n,l])=>`<div class="card" style="margin:0"><div class="big">${n}</div><div class="mut">${l}</div></div>`).join('')}</div>
+<h2>Group standings</h2><div class="grid g2">${t.map((x,i)=>`<div class="card gc" style="border-top-color:${esc(x.color)}"><div class="mut" style="float:right">#${i+1}</div><h3 style="color:color-mix(in srgb,${esc(x.color)} 55%,white)">${esc(x.name)}</h3><div class="big">${x.pts}</div><div class="mut">points, ${x.n} students</div></div>`).join('')}</div>
+<h2>Top 10 students</h2><div class="card">${top.length?tbl(top,rank(top)):'<p class="mut">No points yet. Once results are recorded, the top students appear here.</p>'}</div>
+<h2>Recent competitions</h2>${pub.length?pub.slice(0,3).map(compCard).join(''):'<div class="card mut">No competitions yet.</div>'}
+<div class="card gold"><h3>How scoring works</h3>${[['1st position','3 points'],['2nd position','2 points'],['3rd position','1 point'],['Took part, no position','0 points']].map(([a,b])=>`<div class="row" style="justify-content:space-between;margin:4px 0"><span>${a}</span><b>${b}</b></div>`).join('')}<div class="mut">A group's total is the sum of its students' points. No participation or bonus points.</div></div>
+<p class="mut" style="text-align:center">© 2026 Jamia Ahmadiyya International, Ghana</p>`}
 function board(){
  app.innerHTML=`<h2>All-time leaderboard</h2><div class="row"><select id="fg"><option value="">All groups</option>${opts(G.map(g=>[g.id,g.name]))}</select><select id="fs"><option value="">Any status</option>${opts(Object.entries(ST))}</select></div><div class="card" id="out"></div>`;
  const f=()=>{const a=S.filter(s=>(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value));$('#out').innerHTML=tbl(a,rank(a))};
  $('#fg').onchange=$('#fs').onchange=f;f()}
-function comps(){
- app.innerHTML='<h2>Competitions</h2>'+(C.length?C.map(c=>{const w=R.filter(r=>r.competition_id==c.id).sort((a,b)=>a.position-b.position);
- return `<div class="card"><h3>${esc(c.name)} ${c.status=='draft'?'<span class="mut">(draft)</span>':''}</h3><div class="mut">${esc([c.competition_date,c.academic_session,c.category].filter(Boolean).join(', '))}</div>${esc(c.description||'')}${w.map(r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<div>${ord(r.position)}: <a href="#student/${r.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)}</div>`}).join('')}</div>`}).join(''):'<p class="mut">No competitions yet.</p>')}
+function comps(){app.innerHTML='<h2>Competitions</h2>'+(C.length?C.map(compCard).join(''):'<p class="mut">No competitions yet.</p>')}
 function students(){
  app.innerHTML=`<h2>Students</h2><div class="row"><input id="q" placeholder="Search name"><select id="fg"><option value="">All groups</option>${opts(G.map(g=>[g.id,g.name]))}</select><select id="fs"><option value="">Any status</option>${opts(Object.entries(ST))}</select></div><div class="card" id="out"></div>`;
  const f=()=>{const q=$('#q').value.toLowerCase(),a=S.filter(s=>s.full_name.toLowerCase().includes(q)&&(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value)).sort(byName);
- $('#out').innerHTML=a.length?a.map(s=>`<div><a href="#student/${s.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)} <span class="mut">${esc(s.current_class||'')} ${ST[s.status]}</span></div>`).join(''):'<p class="mut">No students found.</p>'};
+ $('#out').innerHTML=a.length?a.map(s=>`<div><a href="#student/${s.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)} <span class="mut">${esc(s.current_class||'Nil')} ${ST[s.status]}</span></div>`).join(''):'<p class="mut">No students found.</p>'};
  ['#q','#fg','#fs'].forEach(i=>$(i).oninput=f);f()}
 function profile(id){
  const s=S.find(x=>x.student_id==id);if(!s)return app.innerHTML='<p>Student not found. <a href="#students">Back</a></p>';
  const rs=R.filter(r=>r.student_id==id).map(r=>({r,c:C.find(c=>c.id==r.competition_id)})).filter(x=>x.c);
- app.innerHTML=`<p><a href="#students">Back to students</a></p><div class="card"><h2>${esc(s.full_name)}</h2>${gb(s.group_id)} ${ST[s.status]}<div class="mut">${esc(s.current_class||'No class set')}, admitted ${s.admission_year||'unknown'}${s.graduation_year?', graduated '+s.graduation_year:''}</div><h3>${s.points} points</h3>${rs.map(x=>`<div>${esc(x.c.competition_date||'')} ${esc(x.c.name)}: ${ord(x.r.position)} place, ${4-x.r.position} points</div>`).join('')||'<p class="mut">No results yet.</p>'}</div>`}
+ app.innerHTML=`<p><a href="#students">Back to students</a></p><div class="card"><h2>${esc(s.full_name)}</h2>${gb(s.group_id)} ${ST[s.status]}<div class="mut">${esc(s.current_class||'Nil')}, admitted ${s.admission_year||'unknown'}${s.graduation_year?', graduated '+s.graduation_year:''}</div><h3>${s.points} points</h3>${rs.map(x=>`<div>${esc(x.c.competition_date||'')} ${esc(x.c.name)}: ${x.r.position?ord(x.r.position)+' place, '+(4-x.r.position)+' points':'Took part'}</div>`).join('')||'<p class="mut">No results yet.</p>'}</div>`}
 async function adminPage(){
  const {data:{session}}=await sb.auth.getSession();if(!session)return login();
  const {data}=await sb.from('admins').select('email');
@@ -83,7 +87,8 @@ function draw(){
  ({students:aStu,competitions:aCom,results:aRes}[tab])()}
 function aStu(){
  const s=ed&&S.find(x=>x.student_id==ed)||{status:'active',admission_year:new Date().getFullYear()};
- $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} student</h3><div class="row"><input id="n" placeholder="Full name" value="${esc(s.full_name||'')}"><select id="g">${opts(G.map(g=>[g.id,g.name]),s.group_id)}</select><select id="c"><option value="">No class</option>${opts(CL.map(c=>[c,c]),s.current_class)}</select><select id="st">${opts(Object.entries(ST),s.status)}</select><select id="ay">${opts(yrs(),s.admission_year)}</select><select id="gy"><option value="">Graduation year</option>${opts(yrs(),s.graduation_year)}</select></div><button onclick="saveS()">Save student</button> ${ed?'<button class="g" onclick="ed=null;aStu()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><table>${S.slice().sort(byName).map(x=>`<tr><td>${esc(x.full_name)}</td><td>${gb(x.group_id)}</td><td>${esc(x.current_class||'')}</td><td>${ST[x.status]}</td><td>${x.admission_year||''}</td><td><button class="g" onclick="ed='${x.student_id}';aStu()">Edit</button> <button class="g" onclick="delS('${x.student_id}')">Delete</button></td></tr>`).join('')}</table></div>`}
+ $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} student</h3><div class="row"><input id="n" placeholder="Full name" value="${esc(s.full_name||'')}"><select id="g">${opts(G.map(g=>[g.id,g.name]),s.group_id)}</select><select id="c"><option value="">Nil</option>${opts(CL.map(c=>[c,c]),s.current_class)}</select><select id="st">${opts(Object.entries(ST),s.status)}</select><select id="ay">${opts(yrs(),s.admission_year)}</select><select id="gy"><option value="">Graduation year</option>${opts(yrs(),s.graduation_year)}</select></div><button onclick="saveS()">Save student</button> ${ed?'<button class="g" onclick="ed=null;aStu()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><input id="aq" placeholder="Search students by name" oninput="fS()" style="width:100%;margin-bottom:8px"><table id="at"></table></div>`;fS()}
+function fS(){const q=($('#aq').value||'').toLowerCase();$('#at').innerHTML=S.filter(x=>x.full_name.toLowerCase().includes(q)).sort(byName).map(x=>`<tr><td>${esc(x.full_name)}</td><td>${gb(x.group_id)}</td><td>${esc(x.current_class||'Nil')}</td><td>${ST[x.status]}</td><td>${x.admission_year||''}</td><td><button class="g" onclick="ed='${x.student_id}';aStu()">Edit</button> <button class="g" onclick="delS('${x.student_id}')">Delete</button></td></tr>`).join('')||'<tr><td class="mut">No students found.</td></tr>'}
 async function saveS(){
  const v={full_name:$('#n').value.trim(),group_id:$('#g').value,current_class:$('#c').value||null,status:$('#st').value,admission_year:+$('#ay').value,graduation_year:$('#st').value=='graduated'&&$('#gy').value?+$('#gy').value:null};
  if(!v.full_name)return $('#e').textContent='Enter the student name.';
@@ -92,7 +97,7 @@ async function saveS(){
 async function delS(id){if(!confirm('Delete this student and their results?'))return;const {error}=await sb.from('students').delete().eq('id',id);if(error)alert(error.message);await load();draw()}
 function aCom(){
  const c=ed&&C.find(x=>x.id==ed)||{status:'draft'};
- $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} competition</h3><div class="row"><input id="n" placeholder="Name" value="${esc(c.name||'')}"><input id="cat" placeholder="Category" value="${esc(c.category||'')}"><input id="d" type="date" value="${c.competition_date||''}"><input id="se" placeholder="Session e.g. 2025/2026" value="${esc(c.academic_session||'')}"><select id="st">${opts([['draft','Draft'],['published','Published']],c.status)}</select></div><div class="row"><textarea id="ds" placeholder="Description" style="width:100%">${esc(c.description||'')}</textarea></div><button onclick="saveC()">Save competition</button> ${ed?'<button class="g" onclick="ed=null;aCom()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><table>${C.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.competition_date||'')}</td><td>${x.status}</td><td><button class="g" onclick="ed='${x.id}';aCom()">Edit</button> <button class="g" onclick="delC('${x.id}')">Delete</button></td></tr>`).join('')}</table></div>`}
+ $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} competition</h3><div class="row"><input id="n" placeholder="Name" value="${esc(c.name||'')}"><input id="cat" list="cats" placeholder="Category (choose or type new)" value="${esc(c.category||'')}"><datalist id="cats">${[...new Set(['Quiz','Debate','Recitation','Essay writing','Sports','Other',...C.map(x=>x.category).filter(Boolean)])].map(v=>`<option value="${esc(v)}">`).join('')}</datalist><input id="d" type="date" value="${c.competition_date||''}"><input id="se" placeholder="Session e.g. 2025/2026" value="${esc(c.academic_session||'')}"><select id="st">${opts([['draft','Draft'],['published','Published']],c.status)}</select></div><div class="row"><textarea id="ds" placeholder="Description" style="width:100%">${esc(c.description||'')}</textarea></div><button onclick="saveC()">Save competition</button> ${ed?'<button class="g" onclick="ed=null;aCom()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><table>${C.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.competition_date||'')}</td><td>${x.status}</td><td><button class="g" onclick="ed='${x.id}';aCom()">Edit</button> <button class="g" onclick="delC('${x.id}')">Delete</button></td></tr>`).join('')}</table></div>`}
 async function saveC(){
  const v={name:$('#n').value.trim(),category:$('#cat').value||null,competition_date:$('#d').value||null,academic_session:$('#se').value||null,description:$('#ds').value||null,status:$('#st').value};
  if(!v.name)return $('#e').textContent='Enter the competition name.';
@@ -100,14 +105,15 @@ async function saveC(){
  if(error)return $('#e').textContent=error.message;ed=null;await load();draw()}
 async function delC(id){if(!confirm('Delete this competition and its results?'))return;const {error}=await sb.from('competitions').delete().eq('id',id);if(error)alert(error.message);await load();draw()}
 function aRes(){
- const cid=ed||(C[0]&&C[0].id)||'',cur=p=>(R.find(r=>r.competition_id==cid&&r.position==p)||{}).student_id,all=S.slice().sort(byName).map(s=>[s.student_id,s.full_name]);
  if(!C.length)return $('#ad').innerHTML='<p class="mut">Add a competition first.</p>';
- $('#ad').innerHTML=`<div class="card"><h3>Record results</h3><div class="row"><select id="rc" onchange="ed=this.value;aRes()">${opts(C.map(c=>[c.id,c.name]),cid)}</select></div>${[1,2,3].map(p=>`<div class="row">${ord(p)} place (${4-p} points) <select id="p${p}"><option value="">None</option>${opts(all,cur(p))}</select></div>`).join('')}<button onclick="saveR('${cid}')">Save results</button><p class="err" id="e"></p></div>`}
-async function saveR(cid){
- const rows=[1,2,3].map(p=>({competition_id:cid,student_id:$('#p'+p).value,position:p})).filter(r=>r.student_id);
- if(new Set(rows.map(r=>r.student_id)).size<rows.length)return $('#e').textContent='A student cannot place twice.';
- let x=await sb.from('results').delete().eq('competition_id',cid);if(!x.error&&rows.length)x=await sb.from('results').insert(rows);
- if(x.error)return $('#e').textContent=x.error.message;await load();$('#e').textContent='Saved.'}
+ const cid=ed||C[0].id,rs=R.filter(r=>r.competition_id==cid).sort((a,b)=>(a.position||9)-(b.position||9)),done=new Set(rs.map(r=>r.student_id));
+ $('#ad').innerHTML=`<div class="card"><h3>Student results</h3><div class="row"><select id="rc" onchange="ed=this.value;aRes()">${opts(C.map(c=>[c.id,c.name]),cid)}</select></div><div class="row"><input id="rq" placeholder="Search student" oninput="fR()"><select id="rs"></select><select id="rp">${opts([[1,'1st place (3 points)'],[2,'2nd place (2 points)'],[3,'3rd place (1 point)'],[0,'Took part (0 points)']],0)}</select><button onclick="addR('${cid}')">Add</button></div><p class="err" id="e"></p>${rs.map(r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<div class="row">${r.position?ord(r.position):'Took part'}: ${esc(s.full_name)} ${gb(s.group_id)} <button class="g" onclick="delR('${r.id}')">Remove</button></div>`}).join('')||'<p class="mut">No students added yet.</p>'}</div>`;
+ window.fR=()=>{const q=$('#rq').value.toLowerCase();$('#rs').innerHTML=S.filter(s=>s.full_name.toLowerCase().includes(q)&&!done.has(s.student_id)).sort(byName).map(s=>`<option value="${s.student_id}">${esc(s.full_name)}</option>`).join('')};fR()}
+async function addR(cid){
+ const sid=$('#rs').value;if(!sid){$('#e').textContent='Search and select a student first.';return}
+ const {error}=await sb.from('results').upsert({competition_id:cid,student_id:sid,position:+$('#rp').value},{onConflict:'competition_id,student_id'});
+ if(error){$('#e').textContent=error.message.includes('check')?'Run the participation update in Supabase first.':error.message;return}await load();aRes()}
+async function delR(id){const {error}=await sb.from('results').delete().eq('id',id);if(error)alert(error.message);await load();aRes()}
 sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){rec=true;newPw()}});
 addEventListener('hashchange',route);route();
 </script></body></html>
