@@ -1,0 +1,113 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jamia Competition Hub</title>
+<style>
+:root{--ink:#0A1240;--bg:#F6F8FC;--line:#DDE3EE;--mut:#5B6478}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+h1,h2,h3{font-family:Georgia,serif;margin:.2em 0}a{color:var(--ink)}
+.strip{height:6px;background:linear-gradient(90deg,#1D4ED8 25%,#16A34A 25% 50%,#DC2626 50% 75%,#0A1240 75%)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:12px 16px}
+nav{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+nav a{padding:6px 12px;border-radius:6px;text-decoration:none}nav a.on{background:var(--ink);color:#fff}
+main{max-width:960px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.wrap{overflow-x:auto}.b{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-size:13px}
+input,select,textarea,button{font:inherit;padding:8px;border:1px solid var(--line);border-radius:6px;background:#fff;max-width:100%}
+button{background:var(--ink);color:#fff;border-color:var(--ink);cursor:pointer}button.g{background:#fff;color:var(--ink)}
+.bar{height:14px;border-radius:4px;margin-top:8px}.mut{color:var(--mut)}.row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center}.err{color:#B91C1C}
+</style></head><body><div class="strip"></div>
+<header><h2>Jamia Competition Hub</h2><div class="mut">Jamia Ahmadiyya International, Ghana — علم و عمل</div><nav id="nav"></nav></header>
+<main id="app">Loading…</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const sb=supabase.createClient('https://rwdfctflepctckrruxju.supabase.co','sb_publishable_o-Ftg4jsOK7ye6Rg78T9IA_gIyEfzsu');
+const CL=['Mumahida (1)','Oula (2)','Sania (3)','Salisa (4)','Rabia (5)','Khamisa (6)','Shahid (7)'];
+const ST={active:'Active',graduated:'Graduated',withdrawn:'Withdrawn'};
+const $=s=>document.querySelector(s),app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let rec=false,G=[],S=[],C=[],R=[],tab='students',ed=null;
+const gb=id=>{const g=G.find(x=>x.id==id)||{name:'?',color:'#999'};return `<span class="b" style="background:${esc(g.color)}">${esc(g.name)}</span>`};
+const opts=(a,sel)=>a.map(([v,t])=>`<option value="${esc(v)}"${v==sel?' selected':''}>${esc(t)}</option>`).join('');
+const yrs=()=>{const a=[];for(let i=new Date().getFullYear()+1;i>=2012;i--)a.push([i,i]);return a};
+const ord=n=>['','1st','2nd','3rd'][n];
+const byName=(a,b)=>a.full_name.localeCompare(b.full_name);
+const rank=a=>{let p=null,r=0;return a.map((x,i)=>{if(x.points!==p){r=i+1;p=x.points}return r})};
+const tbl=(a,rk)=>a.length?`<div class="wrap"><table><tr><th>#</th><th>Student</th><th>Group</th><th>Class</th><th>Points</th></tr>${a.map((s,i)=>`<tr><td>${rk[i]}</td><td><a href="#student/${s.student_id}">${esc(s.full_name)}</a></td><td>${gb(s.group_id)}</td><td>${esc(s.current_class||'')}</td><td>${s.points}</td></tr>`).join('')}</table></div>`:'<p class="mut">No students yet.</p>';
+async function load(){
+ const [g,s,c,r]=await Promise.all([sb.from('groups').select('*').order('name'),sb.from('student_points').select('*').order('points',{ascending:false}).order('full_name'),sb.from('competitions').select('*').order('competition_date',{ascending:false}),sb.from('results').select('*')]);
+ G=g.data||[];S=s.data||[];C=c.data||[];R=r.data||[];
+ const e=g.error||s.error||c.error||r.error;if(e)app.innerHTML=`<p class="err">${esc(e.message)}</p>`;
+}
+function navbar(){const h=location.hash||'#home';$('#nav').innerHTML=[['home','Home'],['board','Leaderboard'],['comps','Competitions'],['students','Students'],['admin','Admin']].map(([k,t])=>`<a href="#${k}" class="${h.startsWith('#'+k)?'on':''}">${t}</a>`).join('')}
+async function route(){navbar();const h=(location.hash||'#home').slice(1).split('/');await load();if(rec)return;({home,board,comps,students,admin:adminPage,student:profile}[h[0]]||home)(h[1])}
+function home(){
+ const t=G.map(g=>({...g,pts:S.filter(s=>s.group_id==g.id).reduce((a,s)=>a+s.points,0),n:S.filter(s=>s.group_id==g.id).length})),m=Math.max(1,...t.map(x=>x.pts)),top=S.slice(0,10);
+ app.innerHTML=`<h1>Knowledge into action. Excellence through competition.</h1><p class="mut">${S.length} students, ${C.filter(c=>c.status=='published').length} competitions</p>
+<div class="grid">${t.map(x=>`<div class="card" style="border-top:5px solid ${esc(x.color)};margin:0"><h3>${esc(x.name)}</h3><div>${x.pts} points, ${x.n} students</div><div class="bar" style="background:${esc(x.color)};width:${x.pts/m*100}%"></div></div>`).join('')}</div>
+<div class="card"><h3>Top 10 students</h3>${tbl(top,rank(top))}</div>
+<div class="card mut">Scoring: 1st place 3 points, 2nd place 2, 3rd place 1. A group's total is the sum of its students' points.</div>`}
+function board(){
+ app.innerHTML=`<h2>All-time leaderboard</h2><div class="row"><select id="fg"><option value="">All groups</option>${opts(G.map(g=>[g.id,g.name]))}</select><select id="fs"><option value="">Any status</option>${opts(Object.entries(ST))}</select></div><div class="card" id="out"></div>`;
+ const f=()=>{const a=S.filter(s=>(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value));$('#out').innerHTML=tbl(a,rank(a))};
+ $('#fg').onchange=$('#fs').onchange=f;f()}
+function comps(){
+ app.innerHTML='<h2>Competitions</h2>'+(C.length?C.map(c=>{const w=R.filter(r=>r.competition_id==c.id).sort((a,b)=>a.position-b.position);
+ return `<div class="card"><h3>${esc(c.name)} ${c.status=='draft'?'<span class="mut">(draft)</span>':''}</h3><div class="mut">${esc([c.competition_date,c.academic_session,c.category].filter(Boolean).join(', '))}</div>${esc(c.description||'')}${w.map(r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<div>${ord(r.position)}: <a href="#student/${r.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)}</div>`}).join('')}</div>`}).join(''):'<p class="mut">No competitions yet.</p>')}
+function students(){
+ app.innerHTML=`<h2>Students</h2><div class="row"><input id="q" placeholder="Search name"><select id="fg"><option value="">All groups</option>${opts(G.map(g=>[g.id,g.name]))}</select><select id="fs"><option value="">Any status</option>${opts(Object.entries(ST))}</select></div><div class="card" id="out"></div>`;
+ const f=()=>{const q=$('#q').value.toLowerCase(),a=S.filter(s=>s.full_name.toLowerCase().includes(q)&&(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value)).sort(byName);
+ $('#out').innerHTML=a.length?a.map(s=>`<div><a href="#student/${s.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)} <span class="mut">${esc(s.current_class||'')} ${ST[s.status]}</span></div>`).join(''):'<p class="mut">No students found.</p>'};
+ ['#q','#fg','#fs'].forEach(i=>$(i).oninput=f);f()}
+function profile(id){
+ const s=S.find(x=>x.student_id==id);if(!s)return app.innerHTML='<p>Student not found. <a href="#students">Back</a></p>';
+ const rs=R.filter(r=>r.student_id==id).map(r=>({r,c:C.find(c=>c.id==r.competition_id)})).filter(x=>x.c);
+ app.innerHTML=`<p><a href="#students">Back to students</a></p><div class="card"><h2>${esc(s.full_name)}</h2>${gb(s.group_id)} ${ST[s.status]}<div class="mut">${esc(s.current_class||'No class set')}, admitted ${s.admission_year||'unknown'}${s.graduation_year?', graduated '+s.graduation_year:''}</div><h3>${s.points} points</h3>${rs.map(x=>`<div>${esc(x.c.competition_date||'')} ${esc(x.c.name)}: ${ord(x.r.position)} place, ${4-x.r.position} points</div>`).join('')||'<p class="mut">No results yet.</p>'}</div>`}
+async function adminPage(){
+ const {data:{session}}=await sb.auth.getSession();if(!session)return login();
+ const {data}=await sb.from('admins').select('email');
+ if(!data||!data.length){await sb.auth.signOut();return login('This account is not an admin.')}
+ draw()}
+function login(m=''){
+ app.innerHTML=`<div class="card" style="max-width:380px;margin:auto"><h2>Admin sign in</h2><form id="lf"><div class="row"><input id="em" type="email" placeholder="Email" autocomplete="username" style="width:100%"></div><div class="row"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" style="width:100%"></div><p class="err" id="le">${esc(m)}</p><button>Sign in</button> <button type="button" class="g" id="fp">Forgot password?</button></form></div>`;
+ $('#lf').onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('#em').value.trim().toLowerCase(),password:$('#pw').value});if(error)$('#le').textContent='Sign in failed: '+error.message;else adminPage()};
+ $('#fp').onclick=async()=>{const em=$('#em').value.trim().toLowerCase();if(!em){$('#le').textContent='Type your email first, then tap Forgot password.';return}
+ const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
+ $('#le').className=error?'err':'mut';$('#le').textContent=error?'Could not send: '+error.message:'A reset link has been sent if this email has an account. Check your inbox and spam folder.'}}
+function newPw(){
+ app.innerHTML=`<div class="card" style="max-width:380px;margin:auto"><h2>Set a new password</h2><div class="row"><input id="np" type="password" placeholder="New password (8+ characters)" autocomplete="new-password" style="width:100%"></div><p class="err" id="le"></p><button id="sp">Save password</button></div>`;
+ $('#sp').onclick=async()=>{const p=$('#np').value;if(p.length<8){$('#le').textContent='Use at least 8 characters.';return}
+ const {error}=await sb.auth.updateUser({password:p});if(error){$('#le').textContent=error.message;return}
+ rec=false;location.hash='#admin';adminPage()}}
+function draw(){
+ app.innerHTML=`<div class="row">${['students','competitions','results'].map(t=>`<button class="${t==tab?'':'g'}" onclick="tab='${t}';ed=null;draw()">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}<button class="g" onclick="sb.auth.signOut().then(adminPage)">Log out</button></div><div id="ad"></div>`;
+ ({students:aStu,competitions:aCom,results:aRes}[tab])()}
+function aStu(){
+ const s=ed&&S.find(x=>x.student_id==ed)||{status:'active',admission_year:new Date().getFullYear()};
+ $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} student</h3><div class="row"><input id="n" placeholder="Full name" value="${esc(s.full_name||'')}"><select id="g">${opts(G.map(g=>[g.id,g.name]),s.group_id)}</select><select id="c"><option value="">No class</option>${opts(CL.map(c=>[c,c]),s.current_class)}</select><select id="st">${opts(Object.entries(ST),s.status)}</select><select id="ay">${opts(yrs(),s.admission_year)}</select><select id="gy"><option value="">Graduation year</option>${opts(yrs(),s.graduation_year)}</select></div><button onclick="saveS()">Save student</button> ${ed?'<button class="g" onclick="ed=null;aStu()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><table>${S.slice().sort(byName).map(x=>`<tr><td>${esc(x.full_name)}</td><td>${gb(x.group_id)}</td><td>${esc(x.current_class||'')}</td><td>${ST[x.status]}</td><td>${x.admission_year||''}</td><td><button class="g" onclick="ed='${x.student_id}';aStu()">Edit</button> <button class="g" onclick="delS('${x.student_id}')">Delete</button></td></tr>`).join('')}</table></div>`}
+async function saveS(){
+ const v={full_name:$('#n').value.trim(),group_id:$('#g').value,current_class:$('#c').value||null,status:$('#st').value,admission_year:+$('#ay').value,graduation_year:$('#st').value=='graduated'&&$('#gy').value?+$('#gy').value:null};
+ if(!v.full_name)return $('#e').textContent='Enter the student name.';
+ const {error}=ed?await sb.from('students').update(v).eq('id',ed):await sb.from('students').insert(v);
+ if(error)return $('#e').textContent=error.message;ed=null;await load();draw()}
+async function delS(id){if(!confirm('Delete this student and their results?'))return;const {error}=await sb.from('students').delete().eq('id',id);if(error)alert(error.message);await load();draw()}
+function aCom(){
+ const c=ed&&C.find(x=>x.id==ed)||{status:'draft'};
+ $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} competition</h3><div class="row"><input id="n" placeholder="Name" value="${esc(c.name||'')}"><input id="cat" placeholder="Category" value="${esc(c.category||'')}"><input id="d" type="date" value="${c.competition_date||''}"><input id="se" placeholder="Session e.g. 2025/2026" value="${esc(c.academic_session||'')}"><select id="st">${opts([['draft','Draft'],['published','Published']],c.status)}</select></div><div class="row"><textarea id="ds" placeholder="Description" style="width:100%">${esc(c.description||'')}</textarea></div><button onclick="saveC()">Save competition</button> ${ed?'<button class="g" onclick="ed=null;aCom()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><table>${C.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.competition_date||'')}</td><td>${x.status}</td><td><button class="g" onclick="ed='${x.id}';aCom()">Edit</button> <button class="g" onclick="delC('${x.id}')">Delete</button></td></tr>`).join('')}</table></div>`}
+async function saveC(){
+ const v={name:$('#n').value.trim(),category:$('#cat').value||null,competition_date:$('#d').value||null,academic_session:$('#se').value||null,description:$('#ds').value||null,status:$('#st').value};
+ if(!v.name)return $('#e').textContent='Enter the competition name.';
+ const {error}=ed?await sb.from('competitions').update(v).eq('id',ed):await sb.from('competitions').insert(v);
+ if(error)return $('#e').textContent=error.message;ed=null;await load();draw()}
+async function delC(id){if(!confirm('Delete this competition and its results?'))return;const {error}=await sb.from('competitions').delete().eq('id',id);if(error)alert(error.message);await load();draw()}
+function aRes(){
+ const cid=ed||(C[0]&&C[0].id)||'',cur=p=>(R.find(r=>r.competition_id==cid&&r.position==p)||{}).student_id,all=S.slice().sort(byName).map(s=>[s.student_id,s.full_name]);
+ if(!C.length)return $('#ad').innerHTML='<p class="mut">Add a competition first.</p>';
+ $('#ad').innerHTML=`<div class="card"><h3>Record results</h3><div class="row"><select id="rc" onchange="ed=this.value;aRes()">${opts(C.map(c=>[c.id,c.name]),cid)}</select></div>${[1,2,3].map(p=>`<div class="row">${ord(p)} place (${4-p} points) <select id="p${p}"><option value="">None</option>${opts(all,cur(p))}</select></div>`).join('')}<button onclick="saveR('${cid}')">Save results</button><p class="err" id="e"></p></div>`}
+async function saveR(cid){
+ const rows=[1,2,3].map(p=>({competition_id:cid,student_id:$('#p'+p).value,position:p})).filter(r=>r.student_id);
+ if(new Set(rows.map(r=>r.student_id)).size<rows.length)return $('#e').textContent='A student cannot place twice.';
+ let x=await sb.from('results').delete().eq('competition_id',cid);if(!x.error&&rows.length)x=await sb.from('results').insert(rows);
+ if(x.error)return $('#e').textContent=x.error.message;await load();$('#e').textContent='Saved.'}
+sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){rec=true;newPw()}});
+addEventListener('hashchange',route);route();
+</script></body></html>
