@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jamia Competition Hub</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa&family=Inter:wght@400;600&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jamia Competition Hub</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#14110F"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa&family=Inter:wght@400;600&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark;--bg:#14110F;--card:#1E1C1A;--line:#38342F;--ink:#E6EAFB;--mut:#A5A9B8;--gold:#C8963E;--navy:#16217A}
 *{box-sizing:border-box}body{margin:0;font:16px/1.55 Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
@@ -28,7 +28,7 @@ const flag=n=>{const c=CT[n];return c?String.fromCodePoint(...[...c].map(x=>1273
 const ST={active:'Active',graduated:'Graduated',withdrawn:'Withdrawn'};
 const $=s=>document.querySelector(s),app=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let rec=false,G=[],S=[],C=[],R=[],tab='students',ed=null;
+let rec=false,G=[],S=[],C=[],R=[],GR=[],tab='students',ed=null;
 const gb=id=>{const g=G.find(x=>x.id==id)||{name:'?',color:'#999'};return `<span class="b" style="background:${esc(g.color)}">${esc(g.name)}</span>`};
 const opts=(a,sel)=>a.map(([v,t])=>`<option value="${esc(v)}"${v==sel?' selected':''}>${esc(t)}</option>`).join('');
 const yrs=()=>{const a=[];for(let i=new Date().getFullYear()+1;i>=2012;i--)a.push([i,i]);return a};
@@ -36,29 +36,37 @@ const cl=c=>`${c.name} (${[c.academic_session,c.competition_date].filter(Boolean
 const ord=n=>['','1st','2nd','3rd'][n];
 const byName=(a,b)=>a.full_name.localeCompare(b.full_name);
 const rank=a=>{let p=null,r=0;return a.map((x,i)=>{if(x.points!==p){r=i+1;p=x.points}return r})};
+const ses=c=>c.academic_session||String(c.competition_date||'').slice(0,4)||'No session';
+const sessions=()=>[...new Set(C.map(ses))].sort().reverse();
+const sopts=()=>`<option value="">All time</option>${opts(sessions().map(x=>[x,x]))}`;
+const inS=(id,se)=>!se||ses(C.find(c=>c.id==id)||{})==se;
+const ranked=se=>S.map(s=>({...s,points:R.filter(r=>r.student_id==s.student_id&&r.position>0&&inS(r.competition_id,se)).reduce((a,r)=>a+4-r.position,0)})).sort((a,b)=>b.points-a.points||a.full_name.localeCompare(b.full_name));
+const gStand=se=>G.map(g=>({...g,pts:GR.filter(r=>r.group_id==g.id&&inS(r.competition_id,se)).reduce((a,r)=>a+4-r.position,0),n:S.filter(s=>s.group_id==g.id).length})).sort((a,b)=>b.pts-a.pts);
 const tbl=(a,rk)=>a.length?`<div class="wrap"><table><tr><th>#</th><th>Student</th><th>Country</th><th>Group</th><th>Class</th><th>Status</th><th>Points</th></tr>${a.map((s,i)=>`<tr><td>${rk[i]}</td><td><a href="#student/${s.student_id}">${esc(s.full_name)}</a></td><td title="${esc(s.country||'')}">${flag(s.country)||'-'}</td><td>${gb(s.group_id)}</td><td>${esc(s.current_class||'Nil')}</td><td>${ST[s.status]}</td><td>${s.points}</td></tr>`).join('')}</table></div>`:'<p class="mut">No students yet.</p>';
 async function load(){
- const [g,s,c,r]=await Promise.all([sb.from('groups').select('*').order('name'),sb.from('student_points').select('*').order('points',{ascending:false}).order('full_name'),sb.from('competitions').select('*').order('competition_date',{ascending:false}),sb.from('results').select('*')]);
- G=g.data||[];S=s.data||[];C=c.data||[];R=r.data||[];
+ const [g,s,c,r,gr]=await Promise.all([sb.from('groups').select('*').order('name'),sb.from('student_points').select('*').order('points',{ascending:false}).order('full_name'),sb.from('competitions').select('*').order('competition_date',{ascending:false}),sb.from('results').select('*'),sb.from('group_results').select('*')]);
+ G=g.data||[];S=s.data||[];C=c.data||[];R=r.data||[];GR=gr.data||[];
  const e=g.error||s.error||c.error||r.error;if(e)app.innerHTML=`<p class="err">${esc(e.message)}</p>`;
 }
 function navbar(){const h=location.hash||'#home';$('#nav').innerHTML=[['home','Home'],['board','Leaderboard'],['comps','Competitions'],['countries','Countries'],['students','Students'],['admin','Admin']].map(([k,t])=>`<a href="#${k}" class="${h.startsWith('#'+k)||(k=='countries'&&h.startsWith('#country'))?'on':''}">${t}</a>`).join('')}
 async function route(){navbar();const h=(location.hash||'#home').slice(1).split('/');await load();if(rec)return;({home,board,comps,countries,country,students,admin:adminPage,student:profile}[h[0]]||home)(h[1])}
-const compCard=c=>{const w=R.filter(r=>r.competition_id==c.id),nm=r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<a href="#student/${r.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)}`},pl=w.filter(r=>r.position>0).sort((a,b)=>a.position-b.position),pa=w.filter(r=>!r.position);
- return `<div class="card"><h3>${esc(c.name)} ${c.status=='draft'?'<span class="mut">(draft)</span>':''}</h3><div class="mut">${esc([c.competition_date,c.academic_session,c.category].filter(Boolean).join(', '))}</div>${esc(c.description||'')}${pl.map(r=>`<div>${ord(r.position)}: ${nm(r)}</div>`).join('')}${pa.length?`<div class="mut">Also took part: ${pa.map(nm).join(', ')}</div>`:''}</div>`};
+const compCard=c=>{const w=R.filter(r=>r.competition_id==c.id),gr=GR.filter(r=>r.competition_id==c.id).sort((a,b)=>a.position-b.position),nm=r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<a href="#student/${r.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)}`},pl=w.filter(r=>r.position>0).sort((a,b)=>a.position-b.position),pa=w.filter(r=>!r.position);
+ return `<div class="card"><h3>${esc(c.name)} ${c.status=='draft'?'<span class="mut">(draft)</span>':''}</h3><div class="mut">${esc([c.competition_date,c.academic_session,c.category].filter(Boolean).join(', '))}</div>${esc(c.description||'')}${pl.map(r=>`<div>${ord(r.position)}: ${nm(r)}</div>`).join('')}${pa.length?`<div class="mut">Also took part: ${pa.map(nm).join(', ')}</div>`:''}${gr.length?`<div><b>Groups:</b> ${gr.map(r=>ord(r.position)+' '+gb(r.group_id)).join(' ')}</div>`:''}</div>`};
 function home(){
- const t=G.map(g=>({...g,pts:S.filter(s=>s.group_id==g.id).reduce((a,s)=>a+s.points,0),n:S.filter(s=>s.group_id==g.id).length})).sort((a,b)=>b.pts-a.pts),top=S.filter(s=>s.points>0).slice(0,10),pub=C.filter(c=>c.status=='published'),ses=new Set(pub.map(c=>c.academic_session).filter(Boolean)).size;
+ const t=gStand(''),top=ranked('').filter(s=>s.points>0).slice(0,10),pub=C.filter(c=>c.status=='published'),ns=new Set(pub.map(ses)).size;
  app.innerHTML=`<div class="hero"><div class="ar">علم و عمل</div><hr><h1>Jamia Competition Hub</h1><p class="mut">Knowledge into action. Excellence through competition.</p><div class="row" style="justify-content:center"><a class="btn" href="#board">View leaderboard</a><a class="btn g" href="#comps">Competitions</a></div></div>
-<div class="grid">${[[S.length,'Registered students'],[pub.length,'Competitions'],[G.length,'Groups'],[ses,'Academic sessions']].map(([n,l])=>`<div class="card" style="margin:0"><div class="big">${n}</div><div class="mut">${l}</div></div>`).join('')}</div>
-<h2>Group standings</h2><div class="grid g2">${t.map((x,i)=>`<div class="card gc" style="border-top-color:${esc(x.color)}"><div class="mut" style="float:right">#${i+1}</div><h3 style="color:color-mix(in srgb,${esc(x.color)} 55%,white)">${esc(x.name)}</h3><div class="big">${x.pts}</div><div class="mut">points, ${x.n} students</div></div>`).join('')}</div>
+<div class="grid">${[[S.length,'Registered students'],[pub.length,'Competitions'],[G.length,'Groups'],[ns,'Academic sessions']].map(([n,l])=>`<div class="card" style="margin:0"><div class="big">${n}</div><div class="mut">${l}</div></div>`).join('')}</div>
+<h2>Group standings</h2><div class="grid g2">${t.map((x,i)=>`<div class="card gc" style="border-top-color:${esc(x.color)}"><div class="mut" style="float:right">#${i+1}</div><h3 style="color:color-mix(in srgb,${esc(x.color)} 55%,white)">${esc(x.name)}</h3><div class="big">${x.pts}</div><div class="mut">group points, ${x.n} students</div></div>`).join('')}</div>
 <h2>Top 10 students</h2><div class="card">${top.length?tbl(top,rank(top)):'<p class="mut">No points yet. Once results are recorded, the top students appear here.</p>'}</div>
 <h2>Recent competitions</h2>${pub.length?pub.slice(0,3).map(compCard).join(''):'<div class="card mut">No competitions yet.</div>'}
-<div class="card gold"><h3>How scoring works</h3>${[['1st position','3 points'],['2nd position','2 points'],['3rd position','1 point'],['Took part, no position','0 points']].map(([a,b])=>`<div class="row" style="justify-content:space-between;margin:4px 0"><span>${a}</span><b>${b}</b></div>`).join('')}<div class="mut">A group's total is the sum of its students' points. No participation or bonus points.</div></div>
+<div class="card gold"><h3>How scoring works</h3>${[['1st position','3 points'],['2nd position','2 points'],['3rd position','1 point'],['Took part, no position','0 points']].map(([a,b])=>`<div class="row" style="justify-content:space-between;margin:4px 0"><span>${a}</span><b>${b}</b></div>`).join('')}<div class="mut">Student points and group points are recorded separately for each competition. Group points come only from the groups placed in that competition. No participation or bonus points.</div></div>
 <p class="mut" style="text-align:center">© 2026 Jamia Ahmadiyya International, Ghana</p>`}
 function board(){
- app.innerHTML=`<h2>All-time leaderboard</h2><div class="row"><select id="fg"><option value="">All groups</option>${opts(G.map(g=>[g.id,g.name]))}</select><select id="fs"><option value="">Any status</option>${opts(Object.entries(ST))}</select></div><div class="card" id="out"></div>`;
- const f=()=>{const a=S.filter(s=>(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value));$('#out').innerHTML=tbl(a,rank(a))};
- $('#fg').onchange=$('#fs').onchange=f;f()}
+ app.innerHTML=`<h2>Leaderboard</h2><div class="row"><select id="fx">${sopts()}</select><select id="fg"><option value="">All groups</option>${opts(G.map(g=>[g.id,g.name]))}</select><select id="fs"><option value="">Any status</option>${opts(Object.entries(ST))}</select></div><h3>Group standings</h3><div class="grid" id="gs"></div><h3>Students</h3><div class="card" id="out"></div>`;
+ const f=()=>{const se=$('#fx').value,a=ranked(se).filter(s=>(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value));
+ $('#gs').innerHTML=gStand(se).map(x=>`<div class="card gc" style="border-top-color:${esc(x.color)}"><b style="color:color-mix(in srgb,${esc(x.color)} 55%,white)">${esc(x.name)}</b><div class="big">${x.pts}</div><div class="mut">group points</div></div>`).join('');
+ $('#out').innerHTML=tbl(a,rank(a))};
+ $('#fx').onchange=$('#fg').onchange=$('#fs').onchange=f;f()}
 function comps(){app.innerHTML='<h2>Competitions</h2>'+(C.length?C.map(compCard).join(''):'<p class="mut">No competitions yet.</p>')}
 function countries(){
  const m={};S.forEach(s=>{const k=s.country||'Not set';m[k]=m[k]||{n:0,p:0};m[k].n++;m[k].p+=s.points});
@@ -119,13 +127,20 @@ async function delC(id){if(!confirm('Delete this competition and its results?'))
 function aRes(){
  if(!C.length)return $('#ad').innerHTML='<p class="mut">Add a competition first.</p>';
  const cid=ed||C[0].id,rs=R.filter(r=>r.competition_id==cid).sort((a,b)=>(a.position||9)-(b.position||9)),done=new Set(rs.map(r=>r.student_id));
- $('#ad').innerHTML=`<div class="card"><h3>Student results</h3><div class="row"><select id="rc" onchange="ed=this.value;aRes()">${opts(C.map(c=>[c.id,cl(c)]),cid)}</select></div><div class="row"><input id="rq" placeholder="Search student" oninput="fR()"><select id="rs"></select><select id="rp">${opts([[1,'1st place (3 points)'],[2,'2nd place (2 points)'],[3,'3rd place (1 point)'],[0,'Took part (0 points)']],0)}</select><button onclick="addR('${cid}')">Add</button></div><p class="err" id="e"></p>${rs.map(r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<div class="row">${r.position?ord(r.position):'Took part'}: ${esc(s.full_name)} ${gb(s.group_id)} <button class="g" onclick="delR('${r.id}')">Remove</button></div>`}).join('')||'<p class="mut">No students added yet.</p>'}</div>`;
+ $('#ad').innerHTML=`<div class="card"><h3>Student results</h3><div class="row"><select id="rc" onchange="ed=this.value;aRes()">${opts(C.map(c=>[c.id,cl(c)]),cid)}</select></div><div class="row"><input id="rq" placeholder="Search student" oninput="fR()"><select id="rs"></select><select id="rp">${opts([[1,'1st place (3 points)'],[2,'2nd place (2 points)'],[3,'3rd place (1 point)'],[0,'Took part (0 points)']],0)}</select><button onclick="addR('${cid}')">Add</button></div><p class="err" id="e"></p>${rs.map(r=>{const s=S.find(x=>x.student_id==r.student_id)||{};return `<div class="row">${r.position?ord(r.position):'Took part'}: ${esc(s.full_name)} ${gb(s.group_id)} <button class="g" onclick="delR('${r.id}')">Remove</button></div>`}).join('')||'<p class="mut">No students added yet.</p>'}</div><div class="card"><h3>Group results</h3><div class="mut">Which groups placed in this competition. This is separate from the students above.</div>${[1,2,3].map(p=>`<div class="row">${ord(p)} place (${4-p} points) <select id="gp${p}"><option value="">None</option>${opts(G.map(g=>[g.id,g.name]),(GR.find(r=>r.competition_id==cid&&r.position==p)||{}).group_id)}</select></div>`).join('')}<button onclick="saveG('${cid}')">Save group results</button><p class="err" id="eg"></p></div>`;
  window.fR=()=>{const q=$('#rq').value.toLowerCase();$('#rs').innerHTML=S.filter(s=>s.full_name.toLowerCase().includes(q)&&!done.has(s.student_id)).sort(byName).map(s=>`<option value="${s.student_id}">${esc(s.full_name)}</option>`).join('')};fR()}
 async function addR(cid){
  const sid=$('#rs').value;if(!sid){$('#e').textContent='Search and select a student first.';return}
  const {error}=await sb.from('results').upsert({competition_id:cid,student_id:sid,position:+$('#rp').value},{onConflict:'competition_id,student_id'});
  if(error){$('#e').textContent=error.message.includes('check')?'Run the participation update in Supabase first.':error.message;return}await load();aRes()}
+async function saveG(cid){
+ const rows=[1,2,3].map(p=>({competition_id:cid,group_id:$('#gp'+p).value,position:p})).filter(r=>r.group_id);
+ if(new Set(rows.map(r=>r.group_id)).size<rows.length){$('#eg').textContent='A group cannot place twice.';return}
+ let x=await sb.from('group_results').delete().eq('competition_id',cid);if(!x.error&&rows.length)x=await sb.from('group_results').insert(rows);
+ if(x.error){$('#eg').className='err';$('#eg').textContent=x.error.message.includes('group_results')?'Run the group results SQL in Supabase first.':x.error.message;return}
+ await load();$('#eg').className='mut';$('#eg').textContent='Saved.'}
 async function delR(id){const {error}=await sb.from('results').delete().eq('id',id);if(error)alert(error.message);await load();aRes()}
 sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){rec=true;newPw()}});
 addEventListener('hashchange',route);route();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
 </script></body></html>
