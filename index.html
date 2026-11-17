@@ -20,6 +20,7 @@ button,.btn{background:var(--navy);border-color:var(--navy);color:#fff;cursor:po
 <header><div class="brand">Jamia Competition Hub</div><div class="mut">Jamia Ahmadiyya International, Ghana</div><nav id="nav"></nav></header>
 <main id="app">Loading…</main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const sb=supabase.createClient('https://rwdfctflepctckrruxju.supabase.co','sb_publishable_o-Ftg4jsOK7ye6Rg78T9IA_gIyEfzsu');
 const CL=['Mumahida (1)','Oula (2)','Sania (3)','Salisa (4)','Rabia (5)','Khamisa (6)','Shahid (7)'];
@@ -103,8 +104,8 @@ function newPw(){
  const {error}=await sb.auth.updateUser({password:p});if(error){$('#le').textContent=error.message;return}
  rec=false;location.hash='#admin';adminPage()}}
 function draw(){
- app.innerHTML=`<div class="row">${['students','competitions','results'].map(t=>`<button class="${t==tab?'':'g'}" onclick="tab='${t}';ed=null;draw()">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}<button class="g" onclick="sb.auth.signOut().then(adminPage)">Log out</button></div><div id="ad"></div>`;
- ({students:aStu,competitions:aCom,results:aRes}[tab])()}
+ app.innerHTML=`<div class="row">${['students','competitions','results','import'].map(t=>`<button class="${t==tab?'':'g'}" onclick="tab='${t}';ed=null;draw()">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}<button class="g" onclick="sb.auth.signOut().then(adminPage)">Log out</button></div><div id="ad"></div>`;
+ ({students:aStu,competitions:aCom,results:aRes,import:aImp}[tab])()}
 function aStu(){
  const s=ed&&S.find(x=>x.student_id==ed)||{status:'active',admission_year:new Date().getFullYear()};
  $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} student</h3><div class="row"><input id="n" placeholder="Full name" value="${esc(s.full_name||'')}"><select id="g">${opts(G.map(g=>[g.id,g.name]),s.group_id)}</select><select id="c"><option value="">Nil</option>${opts(CL.map(c=>[c,c]),s.current_class)}</select><select id="co"><option value="">Country</option>${opts(Object.keys(CT).map(k=>[k,k]),s.country)}</select><select id="st">${opts(Object.entries(ST),s.status)}</select><select id="ay">${opts(yrs(),s.admission_year)}</select><select id="gy"><option value="">Graduation year</option>${opts(yrs(),s.graduation_year)}</select></div><button onclick="saveS()">Save student</button> ${ed?'<button class="g" onclick="ed=null;aStu()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><input id="aq" placeholder="Search students by name" oninput="fS()" style="width:100%;margin-bottom:8px"><table id="at"></table></div>`;fS()}
@@ -140,6 +141,82 @@ async function saveG(cid){
  if(x.error){$('#eg').className='err';$('#eg').textContent=x.error.message.includes('group_results')?'Run the group results SQL in Supabase first.':x.error.message;return}
  await load();$('#eg').className='mut';$('#eg').textContent='Saved.'}
 async function delR(id){const {error}=await sb.from('results').delete().eq('id',id);if(error)alert(error.message);await load();aRes()}
+function aImp(){
+ $('#ad').innerHTML=`<div class="card"><h3>Import from Excel</h3><p class="mut">Use Students_Import_Template.xlsx. If any row has an error, nothing is saved.</p><div class="row"><input type="file" id="xf" accept=".xlsx"><button onclick="doImp()">Import</button></div><div id="ilog" class="mut" style="margin-top:10px;white-space:pre-wrap"></div></div>`}
+async function doImp(){
+ const log=$('#ilog'),f=$('#xf').files[0],say=(m,c)=>{log.className=c||'mut';log.textContent=m};
+ if(!f)return say('Choose the Excel file first.','err');
+ say('Reading file...');
+ try{
+  await load();
+  const wb=XLSX.read(await f.arrayBuffer(),{cellDates:true});
+  const rd=n=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''}):null;
+  const t=v=>String(v??'').trim(),ex=v=>/^EXAMPLE/i.test(t(v));
+  const yr=v=>{const n=+t(v);return Number.isInteger(n)&&n>=1900&&n<=2100?n:null};
+  const dt=v=>v instanceof Date?new Date(v.getTime()-v.getTimezoneOffset()*6e4).toISOString().slice(0,10):t(v)||null;
+  const errs=[],gm=Object.fromEntries(G.map(g=>[g.name.toLowerCase(),g.id]));
+  const cm=Object.fromEntries(CL.map(c=>[c.toLowerCase(),c])),tm=Object.fromEntries(Object.keys(CT).map(c=>[c.toLowerCase(),c]));
+  const sh={Students:rd('Students'),Competitions:rd('Competitions'),Results:rd('Results')};
+  for(const k in sh)if(!sh[k])errs.push(`Sheet "${k}" is missing.`);
+  if(errs.length)return say(errs.join('\n'),'err');
+  // students
+  const seen=new Set(),sMap={},newS=[];let skipS=0;
+  sh.Students.forEach((r,i)=>{
+   const row=i+2,sid=t(r['Student ID']),name=t(r['Full Name']);
+   if((!sid&&!name)||ex(sid))return;
+   const bad=m=>errs.push(`Students row ${row}: ${m}`);
+   if(!sid)return bad('Student ID is empty.');
+   if(seen.has(sid))return bad(`Student ID ${sid} is repeated.`);seen.add(sid);
+   if(!name)return bad('Full Name is empty.');
+   const g=gm[t(r['Group']).toLowerCase()];if(!g)return bad(`Group "${t(r['Group'])}" not found. Existing groups: ${G.map(x=>x.name).join(', ')||'none'}.`);
+   const st=t(r['Status']).toLowerCase();if(!ST[st])return bad('Status must be Active, Graduated or Withdrawn.');
+   const ay=yr(r['Year of Admission']);if(!ay)return bad('Year of Admission must be a 4-digit year.');
+   let gy=null;if(st=='graduated'){gy=yr(r['Year of Graduation']);if(!gy)return bad('Graduated students need a valid Year of Graduation.')}
+   let cls=null,cr=t(r['Current Class']);if(cr&&cr.toLowerCase()!='nil'){cls=cm[cr.toLowerCase()];if(!cls)return bad(`Class "${cr}" is not in the class list.`)}
+   let co=null,cc=t(r['Country']);if(cc){co=tm[cc.toLowerCase()];if(!co)return bad(`Country "${cc}" is not in the country list.`)}
+   const old=S.find(s=>s.full_name.toLowerCase()==name.toLowerCase());
+   if(old){sMap[sid]=old.student_id;skipS++}
+   else newS.push({sid,v:{full_name:name,group_id:g,current_class:cls,country:co,status:st,admission_year:ay,graduation_year:gy}});
+  });
+  // competitions
+  const cMap={},newC=[];let skipC=0;
+  C.forEach(c=>cMap[c.name.toLowerCase()]=c.id);
+  sh.Competitions.forEach((r,i)=>{
+   const row=i+2,name=t(r['Competition Name']);if(!name||ex(name))return;
+   const bad=m=>errs.push(`Competitions row ${row}: ${m}`);
+   const stt=t(r['Status']).toLowerCase()||'draft';if(!['draft','published'].includes(stt))return bad('Status must be draft or published.');
+   const se=t(r['Academic Session'])||null,old=C.find(c=>c.name.toLowerCase()==name.toLowerCase()&&(c.academic_session||'')==(se||''));
+   if(old){skipC++;return}
+   if(newC.some(x=>x.name.toLowerCase()==name.toLowerCase()))return bad(`"${name}" is repeated.`);
+   newC.push({name,v:{name,category:t(r['Category'])||null,competition_date:dt(r['Date']),academic_session:se,description:t(r['Description'])||null,status:stt}});
+  });
+  // results (validated against names/IDs known from the sheets)
+  const rs=[],rk=new Set(),known=new Set([...C.map(c=>c.name.toLowerCase()),...newC.map(x=>x.name.toLowerCase())]);
+  sh.Results.forEach((r,i)=>{
+   const row=i+2,cn=t(r['Competition Name']),sid=t(r['Student ID']);if((!cn&&!sid)||ex(cn)||ex(sid))return;
+   const bad=m=>errs.push(`Results row ${row}: ${m}`);
+   if(!known.has(cn.toLowerCase()))return bad(`Competition "${cn}" is not in the Competitions sheet.`);
+   if(!(sid in sMap)&&!newS.some(x=>x.sid==sid))return bad(`Student ID "${sid}" is not in the Students sheet.`);
+   const p=t(r['Position']).toLowerCase(),pos=p=='participant'?0:['1','2','3'].includes(p)?+p:null;
+   if(pos===null)return bad('Position must be 1, 2, 3 or Participant.');
+   const key=cn.toLowerCase()+'|'+sid;if(rk.has(key))return bad('This student is listed twice for this competition.');rk.add(key);
+   rs.push({cn:cn.toLowerCase(),sid,pos});
+  });
+  if(errs.length)return say(`Nothing was saved. Fix these ${errs.length} problem(s) and import again:\n`+errs.slice(0,40).join('\n')+(errs.length>40?`\n...and ${errs.length-40} more`:''),'err');
+  // save
+  say('Saving students...');
+  for(let i=0;i<newS.length;i+=200){const ch=newS.slice(i,i+200),{data,error}=await sb.from('students').insert(ch.map(x=>x.v)).select('id,full_name');
+   if(error)throw error;ch.forEach((x,j)=>sMap[x.sid]=data[j].id)}
+  say('Saving competitions...');
+  for(let i=0;i<newC.length;i+=200){const ch=newC.slice(i,i+200),{data,error}=await sb.from('competitions').insert(ch.map(x=>x.v)).select('id,name');
+   if(error)throw error;ch.forEach((x,j)=>cMap[x.name.toLowerCase()]=data[j].id)}
+  say('Saving results...');
+  const rows=rs.map(x=>({competition_id:cMap[x.cn],student_id:sMap[x.sid],position:x.pos}));
+  for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('results').upsert(rows.slice(i,i+200),{onConflict:'competition_id,student_id'});if(error)throw error}
+  await load();
+  say(`Done.\nStudents added: ${newS.length} (already existed: ${skipS})\nCompetitions added: ${newC.length} (already existed: ${skipC})\nResults saved: ${rows.length}`,'');
+ }catch(e){say('Import stopped: '+(e.message||e),'err')}
+}
 sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){rec=true;newPw()}});
 addEventListener('hashchange',route);route();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
