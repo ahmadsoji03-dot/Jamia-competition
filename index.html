@@ -25,7 +25,7 @@ button,.btn{background:var(--navy);border-color:var(--navy);color:#fff;cursor:po
 const sb=supabase.createClient('https://rwdfctflepctckrruxju.supabase.co','sb_publishable_o-Ftg4jsOK7ye6Rg78T9IA_gIyEfzsu');
 const CL=['Mumahida (1)','Oula (2)','Sania (3)','Salisa (4)','Rabia (5)','Khamisa (6)','Shahid (7)'];
 const CT=Object.fromEntries('Ghana:GH,Algeria:DZ,Angola:AO,Australia:AU,Bangladesh:BD,Benin:BJ,Botswana:BW,Burkina Faso:BF,Burundi:BI,Cameroon:CM,Canada:CA,Cape Verde:CV,Chad:TD,Congo:CG,DR Congo:CD,Djibouti:DJ,Egypt:EG,Equatorial Guinea:GQ,Ethiopia:ET,France:FR,Gabon:GA,Gambia:GM,Germany:DE,Guinea:GN,Guinea-Bissau:GW,India:IN,Indonesia:ID,Ivory Coast:CI,Kenya:KE,Liberia:LR,Libya:LY,Madagascar:MG,Malawi:MW,Malaysia:MY,Mali:ML,Mauritania:MR,Mauritius:MU,Morocco:MA,Mozambique:MZ,Namibia:NA,Netherlands:NL,New Zealand:NZ,Niger:NE,Nigeria:NG,Pakistan:PK,Rwanda:RW,Saudi Arabia:SA,Senegal:SN,Sierra Leone:SL,Somalia:SO,South Africa:ZA,Sri Lanka:LK,Sudan:SD,Tanzania:TZ,Togo:TG,Tunisia:TN,Uganda:UG,United Arab Emirates:AE,United Kingdom:GB,United States:US,Zambia:ZM,Zimbabwe:ZW'.split(',').map(x=>x.split(':')));
-const flag=n=>{const c=CT[n];return c?String.fromCodePoint(...[...c].map(x=>127397+x.charCodeAt(0))):''};
+const flag=n=>{const c=CT[n];return c?`<img src="https://flagcdn.com/w80/${c.toLowerCase()}.png" alt="${c}" loading="lazy" style="height:1em;width:auto;vertical-align:-.15em;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.25)">`:''};
 const ST={active:'Active',graduated:'Graduated',withdrawn:'Withdrawn'};
 const $=s=>document.querySelector(s),app=$('#app');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
