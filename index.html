@@ -128,7 +128,7 @@ async function upPhoto(id,f){
  const u=await sb.storage.from('student-photos').upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(u.error)throw u.error;
  const url=sb.storage.from('student-photos').getPublicUrl(path).data.publicUrl+'?v='+Date.now();
  const q=await sb.from('students').update({photo_url:url}).eq('id',id);if(q.error)throw q.error;delete X[id]}
-const nk=v=>String(v||'').replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+const nk=v=>String(v||'').replace(/\.(jpe?g|png|webp|gif|heic|heif|bmp)$/i,'').replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
 function aPh(){
  $('#ad').innerHTML=`<div class="card"><h3>Upload many photos at once</h3><p class="mut">Name each photo file with the student's full name, e.g. <b>Hafiz Thabit Balogun.jpg</b>. Select all the photos together; each one is matched to the student with that name and saved.</p><div class="row"><input type="file" id="bf" accept="image/*" multiple><button onclick="doBulk()">Upload photos</button></div><div id="blog" class="mut" style="margin-top:10px;white-space:pre-wrap"></div></div>`}
 async function doBulk(){
@@ -180,6 +180,7 @@ async function saveG(cid){
 async function delR(id){const {error}=await sb.from('results').delete().eq('id',id);if(error)alert(error.message);await load();aRes()}
 function aImp(){
  $('#ad').innerHTML=`<div class="card"><h3>Export to Excel</h3><p class="mut">Downloads everything on the page in the same format as the import template, so you can edit it and import it again.</p><button onclick="doExp()">Export</button></div><div class="card"><h3>Import from Excel</h3><p class="mut">Use Students_Import_Template.xlsx. If any row has an error, nothing is saved.</p><div class="row"><input type="file" id="xf" accept=".xlsx"><button onclick="doImp()">Import</button></div><div id="ilog" class="mut" style="margin-top:10px;white-space:pre-wrap"></div></div>`}
+const RULES=["- Student ID: a label that is unique inside this file (S001, S002...). It is only needed to tell apart two students who have the same name.", "- Group: must match a group name that already exists on your page (capital letters do not matter).", "- Status: Active, Graduated or Withdrawn. Graduation Year is only used for Graduated students.", "- Current Class: use a class from the 'Lists' sheet, or leave empty (shown as Nil).", "- Country: use a country from the 'Lists' sheet (the same list your page uses).", "- Competitions are identified by their name (plus Academic Session). Status: draft (hidden from public) or published. Empty = draft.", "- Date: write as YYYY-MM-DD, e.g. 2026-03-14. Academic Session e.g. 2025/2026.", "- Results: write the Competition Name exactly as in the Competitions sheet or on your page, and the student's full Student Name as on your page. Student ID is optional.", "- You can add results for students who are already on your page without listing them in the Students sheet.", "- Position: 1, 2, 3, or Participant (took part, 0 points).", "- Re-importing is safe: students with the same name and competitions with the same name + session are not duplicated.", "- Students already on the page are not changed by the import, except the profile columns below.", "- Optional profile columns: Photo Link, Introduction, Thesis Title, Thesis Link (a Google Drive link set to 'Anyone with the link can view'). Cells that are not empty update the student's profile. For photos, the Photos tab in Admin works better than links.", "- Group results (which groups placed) are not in this file; enter those on the page."];
 async function doExp(){
  try{
   await load();
@@ -192,10 +193,16 @@ async function doExp(){
   const H2=['Competition Name','Category','Date','Academic Session','Status','Description'];
   const B=C.map(c=>({'Competition Name':c.name,'Category':c.category||'','Date':c.competition_date||'','Academic Session':c.academic_session||'','Status':c.status||'draft','Description':c.description||''}));
   const cn=Object.fromEntries(C.map(c=>[c.id,c.name]));
-  const H3=['Competition Name','Student ID','Position'];
-  const D=R.filter(r=>cn[r.competition_id]&&sid[r.student_id]).map(r=>({'Competition Name':cn[r.competition_id],'Student ID':sid[r.student_id],'Position':r.position||'Participant'}));
+  const H3=['Competition Name','Student Name','Student ID','Position'],nm=Object.fromEntries(st.map(x=>[x.id,x.full_name]));
+  const D=R.filter(r=>cn[r.competition_id]&&sid[r.student_id]).map(r=>({'Competition Name':cn[r.competition_id],'Student Name':nm[r.student_id],'Student ID':sid[r.student_id],'Position':r.position||'Participant'}));
   const wb=XLSX.utils.book_new(),add=(n,rows,h,w)=>{const ws=XLSX.utils.json_to_sheet(rows,{header:h});ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,n)};
-  add('Students',A,H1,[12,28,16,18,12,10,10,16,30,60,30,30]);add('Competitions',B,H2,[30,14,12,16,10,40]);add('Results',D,H3,[30,12,12]);
+  const day=new Date().toISOString().slice(0,10);
+  const L=['How to use this workbook','','1. This file was exported from your page on '+day+'. Edit the rows, or add new rows under the existing ones, then import it again.','2. In your page: Admin > Import > choose this file > Import. If any row has an error, NOTHING is saved and the errors are listed so you can fix them and try again.','','Rules',...RULES,"- Dropdown lists exist only in Students_Import_Template.xlsx. In this exported file, the allowed values are listed in the 'Lists' sheet."];
+  const wi=XLSX.utils.aoa_to_sheet(L.map(x=>[x]));wi['!cols']=[{wch:130}];XLSX.utils.book_append_sheet(wb,wi,'Instructions');
+  add('Students',A,H1,[12,28,16,18,12,10,10,16,30,60,30,30]);add('Competitions',B,H2,[30,14,12,16,10,40]);add('Results',D,H3,[30,28,12,12]);
+  const cols=[['Groups',G.map(g=>g.name)],['Countries',Object.keys(CT)],['Classes',CL],['Status',['Active','Graduated','Withdrawn']],['Position',['1','2','3','Participant']],['Competition Status',['draft','published']]];
+  const n=Math.max(...cols.map(c=>c[1].length)),aoa=[cols.map(c=>c[0])];for(let i=0;i<n;i++)aoa.push(cols.map(c=>c[1][i]||''));
+  const wl=XLSX.utils.aoa_to_sheet(aoa);wl['!cols']=cols.map(()=>({wch:20}));XLSX.utils.book_append_sheet(wb,wl,'Lists');
   XLSX.writeFile(wb,'Jamia_Export_'+new Date().toISOString().slice(0,10)+'.xlsx');
  }catch(e){alert('Export failed: '+(e.message||e))}
 }
@@ -216,7 +223,7 @@ async function doImp(){
   for(const k in sh)if(!sh[k])errs.push(`Sheet "${k}" is missing.`);
   if(errs.length)return say(errs.join('\n'),'err');
   // students
-  const seen=new Set(),sMap={},newS=[],upS=[];let skipS=0;
+  const seen=new Set(),sMap={},newS=[],upS=[],byN={},nameOf={},nn=v=>String(v||'').replace(/\s+/g,' ').trim().toLowerCase();let skipS=0;
   sh.Students.forEach((r,i)=>{
    const row=i+2,sid=t(r['Student ID']),name=t(r['Full Name']);
    if((!sid&&!name)||ex(sid))return;
@@ -230,6 +237,7 @@ async function doImp(){
    let gy=null;if(st=='graduated'){gy=yr(r['Year of Graduation']);if(!gy)return bad('Graduated students need a valid Year of Graduation.')}
    let cls=null,cr=t(r['Current Class']);if(cr&&cr.toLowerCase()!='nil'){cls=cm[cr.toLowerCase()];if(!cls)return bad(`Class "${cr}" is not in the class list.`)}
    let co=null,cc=t(r['Country']);if(cc){co=tm[cc.toLowerCase()];if(!co)return bad(`Country "${cc}" is not in the country list.`)}
+   byN[nn(name)]=(byN[nn(name)]||[]).concat(sid);nameOf[sid]=name;
    const old=S.find(s=>s.full_name.toLowerCase()==name.toLowerCase());
    const pf=Object.fromEntries(Object.entries({photo_url:t(r['Photo Link']),bio:t(r['Introduction']),thesis_title:t(r['Thesis Title']),thesis_url:t(r['Thesis Link'])}).filter(([k,v])=>v));
    if(old){sMap[sid]=old.student_id;skipS++;if(Object.keys(pf).length)upS.push({id:old.student_id,v:pf})}
@@ -250,14 +258,28 @@ async function doImp(){
   // results (validated against names/IDs known from the sheets)
   const rs=[],rk=new Set(),known=new Set([...C.map(c=>c.name.toLowerCase()),...newC.map(x=>x.name.toLowerCase())]);
   sh.Results.forEach((r,i)=>{
-   const row=i+2,cn=t(r['Competition Name']),sid=t(r['Student ID']);if((!cn&&!sid)||ex(cn)||ex(sid))return;
+   const row=i+2,cn=t(r['Competition Name']),sid=t(r['Student ID']),sn=t(r['Student Name']);
+   if((!cn&&!sid&&!sn)||ex(cn)||ex(sid))return;
    const bad=m=>errs.push(`Results row ${row}: ${m}`);
-   if(!known.has(cn.toLowerCase()))return bad(`Competition "${cn}" is not in the Competitions sheet.`);
-   if(!(sid in sMap)&&!newS.some(x=>x.sid==sid))return bad(`Student ID "${sid}" is not in the Students sheet.`);
+   if(!known.has(cn.toLowerCase()))return bad(`Competition "${cn}" was not found on the page or in the Competitions sheet.`);
+   let ref=null;
+   if(sid){
+    if(!(sid in sMap)&&!newS.some(x=>x.sid==sid))return bad(`Student ID "${sid}" is not in the Students sheet.`);
+    if(sn&&nameOf[sid]&&nn(nameOf[sid])!=nn(sn))return bad(`Student ID ${sid} belongs to "${nameOf[sid]}", not "${sn}".`);
+    ref={sid};
+   }else if(sn){
+    const h=byN[nn(sn)]||[];
+    if(h.length>1)return bad(`"${sn}" appears more than once in the Students sheet. Fill in the Student ID too.`);
+    if(h.length==1)ref={sid:h[0]};
+    else{const e=S.filter(x=>nn(x.full_name)==nn(sn));
+     if(e.length>1)return bad(`More than one student on the page is named "${sn}". Please contact the developer.`);
+     if(e.length==1)ref={uuid:e[0].student_id};
+     else return bad(`Student "${sn}" was not found. Check the spelling or add them in the Students sheet.`)}
+   }else return bad('Student Name is empty.');
    const p=t(r['Position']).toLowerCase(),pos=p=='participant'?0:['1','2','3'].includes(p)?+p:null;
    if(pos===null)return bad('Position must be 1, 2, 3 or Participant.');
-   const key=cn.toLowerCase()+'|'+sid;if(rk.has(key))return bad('This student is listed twice for this competition.');rk.add(key);
-   rs.push({cn:cn.toLowerCase(),sid,pos});
+   const key=cn.toLowerCase()+'|'+(ref.uuid?'u'+ref.uuid:'s'+ref.sid);if(rk.has(key))return bad('This student is listed twice for this competition.');rk.add(key);
+   rs.push({cn:cn.toLowerCase(),sid:ref.sid,uuid:ref.uuid,pos});
   });
   if(errs.length)return say(`Nothing was saved. Fix these ${errs.length} problem(s) and import again:\n`+errs.slice(0,40).join('\n')+(errs.length>40?`\n...and ${errs.length-40} more`:''),'err');
   // save
@@ -269,7 +291,7 @@ async function doImp(){
   for(let i=0;i<newC.length;i+=200){const ch=newC.slice(i,i+200),{data,error}=await sb.from('competitions').insert(ch.map(x=>x.v)).select('id,name');
    if(error)throw error;ch.forEach((x,j)=>cMap[x.name.toLowerCase()]=data[j].id)}
   say('Saving results...');
-  const rows=rs.map(x=>({competition_id:cMap[x.cn],student_id:sMap[x.sid],position:x.pos}));
+  const rows=rs.map(x=>({competition_id:cMap[x.cn],student_id:x.uuid||sMap[x.sid],position:x.pos}));
   for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('results').upsert(rows.slice(i,i+200),{onConflict:'competition_id,student_id'});if(error)throw error}
   await load();
   say(`Done.\nStudents added: ${newS.length} (already existed: ${skipS}, profiles updated: ${upS.length})\nCompetitions added: ${newC.length} (already existed: ${skipC})\nResults saved: ${rows.length}`,'');
