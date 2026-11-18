@@ -83,10 +83,18 @@ function students(){
  const f=()=>{const q=$('#q').value.toLowerCase(),a=S.filter(s=>s.full_name.toLowerCase().includes(q)&&(!$('#fg').value||s.group_id==$('#fg').value)&&(!$('#fs').value||s.status==$('#fs').value)).sort(byName);
  $('#out').innerHTML=a.length?a.map(s=>`<div><a href="#student/${s.student_id}">${esc(s.full_name)}</a> ${gb(s.group_id)} <span class="mut">${esc(s.current_class||'Nil')} ${ST[s.status]}</span></div>`).join(''):'<p class="mut">No students found.</p>'};
  ['#q','#fg','#fs'].forEach(i=>$(i).oninput=f);f()}
-function profile(id){
+const okU=u=>/^https?:\/\//i.test(u||'')?u:'';
+const picU=u=>{u=okU(u);if(!u)return'';const m=u.match(/drive\.google\.com\/.*?(?:\/d\/|[?&]id=)([\w-]+)/);return m?`https://drive.google.com/thumbnail?id=${m[1]}&sz=w600`:u};
+let X={};
+async function getX(id){try{const q=await sb.from('student_profiles').select('*').eq('id',id).maybeSingle();return q.data||{}}catch(e){return{}}}
+async function profile(id){
  const s=S.find(x=>x.student_id==id);if(!s)return app.innerHTML='<p>Student not found. <a href="#students">Back</a></p>';
+ const x=await getX(id);
+ const pic=picU(x.photo_url)?`<img src="${esc(picU(x.photo_url))}" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:50%;float:right;margin:0 0 8px 12px">`:'';
+ const bio=x.bio?x.bio.split(/\n+/).map(p=>`<p>${esc(p)}</p>`).join(''):'';
+ const th=(x.thesis_title||okU(x.thesis_url))?`<div style="margin:12px 0"><b>Thesis (Makala)</b>${x.thesis_title?`<div>${esc(x.thesis_title)}</div>`:''}${okU(x.thesis_url)?`<div><a href="${esc(okU(x.thesis_url))}" target="_blank" rel="noopener">Read / download</a></div>`:''}</div>`:'';
  const rs=R.filter(r=>r.student_id==id).map(r=>({r,c:C.find(c=>c.id==r.competition_id)})).filter(x=>x.c);
- app.innerHTML=`<p><a href="#students">Back to students</a></p><div class="card"><h2>${esc(s.full_name)}</h2>${gb(s.group_id)} ${ST[s.status]}<div class="mut">${s.country?flag(s.country)+' '+esc(s.country)+', ':''}${esc(s.current_class||'Nil')}, admitted ${s.admission_year||'unknown'}${s.graduation_year?', graduated '+s.graduation_year:''}</div><h3>${s.points} points</h3>${rs.map(x=>`<div>${esc(x.c.competition_date||'')} ${esc(x.c.name)}: ${x.r.position?ord(x.r.position)+' place, '+(4-x.r.position)+' points':'Took part'}</div>`).join('')||'<p class="mut">No results yet.</p>'}</div>`}
+ app.innerHTML=`<p><a href="#students">Back to students</a></p><div class="card">${pic}<h2>${esc(s.full_name)}</h2>${gb(s.group_id)} ${ST[s.status]}<div class="mut">${s.country?flag(s.country)+' '+esc(s.country)+', ':''}${esc(s.current_class||'Nil')}, admitted ${s.admission_year||'unknown'}${s.graduation_year?', graduated '+s.graduation_year:''}</div>${bio}${th}<h3>${s.points} points</h3>${rs.map(x=>`<div>${esc(x.c.competition_date||'')} ${esc(x.c.name)}: ${x.r.position?ord(x.r.position)+' place, '+(4-x.r.position)+' points':'Took part'}</div>`).join('')||'<p class="mut">No results yet.</p>'}</div>`}
 async function adminPage(){
  const {data:{session}}=await sb.auth.getSession();if(!session)return login();
  const {data}=await sb.from('admins').select('email');
@@ -104,17 +112,46 @@ function newPw(){
  const {error}=await sb.auth.updateUser({password:p});if(error){$('#le').textContent=error.message;return}
  rec=false;location.hash='#admin';adminPage()}}
 function draw(){
- app.innerHTML=`<div class="row">${['students','competitions','results','import'].map(t=>`<button class="${t==tab?'':'g'}" onclick="tab='${t}';ed=null;draw()">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}<button class="g" onclick="sb.auth.signOut().then(adminPage)">Log out</button></div><div id="ad"></div>`;
- ({students:aStu,competitions:aCom,results:aRes,import:aImp}[tab])()}
+ app.innerHTML=`<div class="row">${['students','competitions','results','photos','import'].map(t=>`<button class="${t==tab?'':'g'}" onclick="tab='${t}';ed=null;draw()">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}<button class="g" onclick="sb.auth.signOut().then(adminPage)">Log out</button></div><div id="ad"></div>`;
+ ({students:aStu,competitions:aCom,results:aRes,photos:aPh,import:aImp}[tab])()}
 function aStu(){
+ const x=(ed&&X[ed])||{};
  const s=ed&&S.find(x=>x.student_id==ed)||{status:'active',admission_year:new Date().getFullYear()};
- $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} student</h3><div class="row"><input id="n" placeholder="Full name" value="${esc(s.full_name||'')}"><select id="g">${opts(G.map(g=>[g.id,g.name]),s.group_id)}</select><select id="c"><option value="">Nil</option>${opts(CL.map(c=>[c,c]),s.current_class)}</select><select id="co"><option value="">Country</option>${opts(Object.keys(CT).map(k=>[k,k]),s.country)}</select><select id="st">${opts(Object.entries(ST),s.status)}</select><select id="ay">${opts(yrs(),s.admission_year)}</select><select id="gy"><option value="">Graduation year</option>${opts(yrs(),s.graduation_year)}</select></div><button onclick="saveS()">Save student</button> ${ed?'<button class="g" onclick="ed=null;aStu()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><input id="aq" placeholder="Search students by name" oninput="fS()" style="width:100%;margin-bottom:8px"><table id="at"></table></div>`;fS()}
-function fS(){const q=($('#aq').value||'').toLowerCase();$('#at').innerHTML=S.filter(x=>x.full_name.toLowerCase().includes(q)).sort(byName).map(x=>`<tr><td>${esc(x.full_name)} ${flag(x.country)}</td><td>${gb(x.group_id)}</td><td>${esc(x.current_class||'Nil')}</td><td>${ST[x.status]}</td><td>${x.admission_year||''}</td><td><button class="g" onclick="ed='${x.student_id}';aStu()">Edit</button> <button class="g" onclick="delS('${x.student_id}')">Delete</button></td></tr>`).join('')||'<tr><td class="mut">No students found.</td></tr>'}
+ $('#ad').innerHTML=`<div class="card"><h3>${ed?'Edit':'Add'} student</h3><div class="row"><input id="n" placeholder="Full name" value="${esc(s.full_name||'')}"><select id="g">${opts(G.map(g=>[g.id,g.name]),s.group_id)}</select><select id="c"><option value="">Nil</option>${opts(CL.map(c=>[c,c]),s.current_class)}</select><select id="co"><option value="">Country</option>${opts(Object.keys(CT).map(k=>[k,k]),s.country)}</select><select id="st">${opts(Object.entries(ST),s.status)}</select><select id="ay">${opts(yrs(),s.admission_year)}</select><select id="gy"><option value="">Graduation year</option>${opts(yrs(),s.graduation_year)}</select></div><div class="row">${picU(x.photo_url)?`<img src="${esc(picU(x.photo_url))}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:50%">`:''}<label class="mut" style="width:100%">Photo: choose from your gallery <input type="file" id="pf" accept="image/*"></label><input id="pu" placeholder="Or paste a photo link (optional)" value="${esc(x.photo_url||'')}" style="width:100%"><input id="tt" placeholder="Thesis (Makala) title, optional" value="${esc(x.thesis_title||'')}" style="width:100%"><input id="tu" placeholder="Thesis link (Google Drive), optional" value="${esc(x.thesis_url||'')}" style="width:100%"><textarea id="bi" placeholder="Introduction (2-3 short paragraphs; press Enter for a new paragraph)" rows="6" style="width:100%">${esc(x.bio||'')}</textarea></div><button onclick="saveS()">Save student</button> ${ed?'<button class="g" onclick="ed=null;aStu()">Cancel</button>':''}<p class="err" id="e"></p></div><div class="card wrap"><input id="aq" placeholder="Search students by name" oninput="fS()" style="width:100%;margin-bottom:8px"><table id="at"></table></div>`;fS()}
+function fS(){const q=($('#aq').value||'').toLowerCase();$('#at').innerHTML=S.filter(x=>x.full_name.toLowerCase().includes(q)).sort(byName).map(x=>`<tr><td>${esc(x.full_name)} ${flag(x.country)}</td><td>${gb(x.group_id)}</td><td>${esc(x.current_class||'Nil')}</td><td>${ST[x.status]}</td><td>${x.admission_year||''}</td><td><button class="g" onclick="editS('${x.student_id}')">Edit</button> <button class="g" onclick="delS('${x.student_id}')">Delete</button></td></tr>`).join('')||'<tr><td class="mut">No students found.</td></tr>'}
+async function shrink(f){
+ const b=await createImageBitmap(f),k=Math.min(1,600/Math.max(b.width,b.height)),c=document.createElement('canvas');
+ c.width=Math.round(b.width*k);c.height=Math.round(b.height*k);c.getContext('2d').drawImage(b,0,0,c.width,c.height);
+ return new Promise((ok,no)=>c.toBlob(x=>x?ok(x):no(new Error('Could not read this image')),'image/jpeg',.85))}
+async function upPhoto(id,f){
+ const blob=await shrink(f),path=id+'.jpg';
+ const u=await sb.storage.from('student-photos').upload(path,blob,{upsert:true,contentType:'image/jpeg'});if(u.error)throw u.error;
+ const url=sb.storage.from('student-photos').getPublicUrl(path).data.publicUrl+'?v='+Date.now();
+ const q=await sb.from('students').update({photo_url:url}).eq('id',id);if(q.error)throw q.error;delete X[id]}
+const nk=v=>String(v||'').replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+function aPh(){
+ $('#ad').innerHTML=`<div class="card"><h3>Upload many photos at once</h3><p class="mut">Name each photo file with the student's full name, e.g. <b>Hafiz Thabit Balogun.jpg</b>. Select all the photos together; each one is matched to the student with that name and saved.</p><div class="row"><input type="file" id="bf" accept="image/*" multiple><button onclick="doBulk()">Upload photos</button></div><div id="blog" class="mut" style="margin-top:10px;white-space:pre-wrap"></div></div>`}
+async function doBulk(){
+ const log=$('#blog'),fs=[...$('#bf').files],say=(m,c)=>{log.className=c||'mut';log.textContent=m};
+ if(!fs.length)return say('Choose the photos first.','err');
+ const m=Object.fromEntries(S.map(x=>[nk(x.full_name),x.student_id])),bad=[];let ok=0;
+ for(const [i,f] of fs.entries()){
+  const id=m[nk(f.name)];if(!id){bad.push(f.name+' (no student with this name)');continue}
+  say(`Uploading ${i+1} of ${fs.length}...`);
+  try{await upPhoto(id,f);ok++}catch(e){bad.push(f.name+' ('+(e.message||e)+')')}
+ }
+ await load();
+ say(`Done. Photos saved: ${ok}`+(bad.length?`\nNot saved (${bad.length}):\n`+bad.join('\n'):''),bad.length?'err':'');
+}
+async function editS(id){X[id]=await getX(id);ed=id;aStu()}
 async function saveS(){
- const v={full_name:$('#n').value.trim(),group_id:$('#g').value,current_class:$('#c').value||null,country:$('#co').value||null,status:$('#st').value,admission_year:+$('#ay').value,graduation_year:$('#st').value=='graduated'&&$('#gy').value?+$('#gy').value:null};
+ const v={full_name:$('#n').value.trim(),group_id:$('#g').value,current_class:$('#c').value||null,country:$('#co').value||null,status:$('#st').value,admission_year:+$('#ay').value,graduation_year:$('#st').value=='graduated'&&$('#gy').value?+$('#gy').value:null,photo_url:$('#pu').value.trim()||null,bio:$('#bi').value.trim()||null,thesis_title:$('#tt').value.trim()||null,thesis_url:$('#tu').value.trim()||null};
  if(!v.full_name)return $('#e').textContent='Enter the student name.';
- const {error}=ed?await sb.from('students').update(v).eq('id',ed):await sb.from('students').insert(v);
- if(error)return $('#e').textContent=error.message;ed=null;await load();draw()}
+ const r=ed?await sb.from('students').update(v).eq('id',ed).select('id').single():await sb.from('students').insert(v).select('id').single();
+ if(r.error)return $('#e').textContent=r.error.message;
+ const f=$('#pf')&&$('#pf').files[0];
+ if(f){try{await upPhoto(r.data.id,f)}catch(e){await load();return $('#e').textContent='Student saved, but the photo upload failed: '+(e.message||e)}}
+ delete X[r.data.id];ed=null;await load();draw()}
 async function delS(id){if(!confirm('Delete this student and their results?'))return;const {error}=await sb.from('students').delete().eq('id',id);if(error)alert(error.message);await load();draw()}
 function aCom(){
  const c=ed&&C.find(x=>x.id==ed)||{status:'draft'};
@@ -142,7 +179,26 @@ async function saveG(cid){
  await load();$('#eg').className='mut';$('#eg').textContent='Saved.'}
 async function delR(id){const {error}=await sb.from('results').delete().eq('id',id);if(error)alert(error.message);await load();aRes()}
 function aImp(){
- $('#ad').innerHTML=`<div class="card"><h3>Import from Excel</h3><p class="mut">Use Students_Import_Template.xlsx. If any row has an error, nothing is saved.</p><div class="row"><input type="file" id="xf" accept=".xlsx"><button onclick="doImp()">Import</button></div><div id="ilog" class="mut" style="margin-top:10px;white-space:pre-wrap"></div></div>`}
+ $('#ad').innerHTML=`<div class="card"><h3>Export to Excel</h3><p class="mut">Downloads everything on the page in the same format as the import template, so you can edit it and import it again.</p><button onclick="doExp()">Export</button></div><div class="card"><h3>Import from Excel</h3><p class="mut">Use Students_Import_Template.xlsx. If any row has an error, nothing is saved.</p><div class="row"><input type="file" id="xf" accept=".xlsx"><button onclick="doImp()">Import</button></div><div id="ilog" class="mut" style="margin-top:10px;white-space:pre-wrap"></div></div>`}
+async function doExp(){
+ try{
+  await load();
+  const {data:st,error}=await sb.from('students').select('*').order('full_name');if(error)throw error;
+  const pr=Object.fromEntries(((await sb.from('student_profiles').select('*')).data||[]).map(r=>[r.id,r]));
+  const gn=id=>(G.find(g=>g.id==id)||{}).name||'',cap=v=>v?v[0].toUpperCase()+v.slice(1):'',sid={};
+  st.forEach((x,i)=>sid[x.id]='S'+String(i+1).padStart(3,'0'));
+  const H1=['Student ID','Full Name','Group','Country','Status','Year of Admission','Year of Graduation','Current Class','Photo Link','Introduction','Thesis Title','Thesis Link'];
+  const A=st.map(x=>{const p=pr[x.id]||{};return{'Student ID':sid[x.id],'Full Name':x.full_name,'Group':gn(x.group_id),'Country':x.country||'','Status':cap(x.status),'Year of Admission':x.admission_year||'','Year of Graduation':x.graduation_year||'','Current Class':x.current_class||'','Photo Link':p.photo_url||'','Introduction':p.bio||'','Thesis Title':p.thesis_title||'','Thesis Link':p.thesis_url||''}});
+  const H2=['Competition Name','Category','Date','Academic Session','Status','Description'];
+  const B=C.map(c=>({'Competition Name':c.name,'Category':c.category||'','Date':c.competition_date||'','Academic Session':c.academic_session||'','Status':c.status||'draft','Description':c.description||''}));
+  const cn=Object.fromEntries(C.map(c=>[c.id,c.name]));
+  const H3=['Competition Name','Student ID','Position'];
+  const D=R.filter(r=>cn[r.competition_id]&&sid[r.student_id]).map(r=>({'Competition Name':cn[r.competition_id],'Student ID':sid[r.student_id],'Position':r.position||'Participant'}));
+  const wb=XLSX.utils.book_new(),add=(n,rows,h,w)=>{const ws=XLSX.utils.json_to_sheet(rows,{header:h});ws['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,n)};
+  add('Students',A,H1,[12,28,16,18,12,10,10,16,30,60,30,30]);add('Competitions',B,H2,[30,14,12,16,10,40]);add('Results',D,H3,[30,12,12]);
+  XLSX.writeFile(wb,'Jamia_Export_'+new Date().toISOString().slice(0,10)+'.xlsx');
+ }catch(e){alert('Export failed: '+(e.message||e))}
+}
 async function doImp(){
  const log=$('#ilog'),f=$('#xf').files[0],say=(m,c)=>{log.className=c||'mut';log.textContent=m};
  if(!f)return say('Choose the Excel file first.','err');
@@ -160,7 +216,7 @@ async function doImp(){
   for(const k in sh)if(!sh[k])errs.push(`Sheet "${k}" is missing.`);
   if(errs.length)return say(errs.join('\n'),'err');
   // students
-  const seen=new Set(),sMap={},newS=[];let skipS=0;
+  const seen=new Set(),sMap={},newS=[],upS=[];let skipS=0;
   sh.Students.forEach((r,i)=>{
    const row=i+2,sid=t(r['Student ID']),name=t(r['Full Name']);
    if((!sid&&!name)||ex(sid))return;
@@ -175,8 +231,9 @@ async function doImp(){
    let cls=null,cr=t(r['Current Class']);if(cr&&cr.toLowerCase()!='nil'){cls=cm[cr.toLowerCase()];if(!cls)return bad(`Class "${cr}" is not in the class list.`)}
    let co=null,cc=t(r['Country']);if(cc){co=tm[cc.toLowerCase()];if(!co)return bad(`Country "${cc}" is not in the country list.`)}
    const old=S.find(s=>s.full_name.toLowerCase()==name.toLowerCase());
-   if(old){sMap[sid]=old.student_id;skipS++}
-   else newS.push({sid,v:{full_name:name,group_id:g,current_class:cls,country:co,status:st,admission_year:ay,graduation_year:gy}});
+   const pf=Object.fromEntries(Object.entries({photo_url:t(r['Photo Link']),bio:t(r['Introduction']),thesis_title:t(r['Thesis Title']),thesis_url:t(r['Thesis Link'])}).filter(([k,v])=>v));
+   if(old){sMap[sid]=old.student_id;skipS++;if(Object.keys(pf).length)upS.push({id:old.student_id,v:pf})}
+   else newS.push({sid,v:{full_name:name,group_id:g,current_class:cls,country:co,status:st,admission_year:ay,graduation_year:gy,...pf}});
   });
   // competitions
   const cMap={},newC=[];let skipC=0;
@@ -207,6 +264,7 @@ async function doImp(){
   say('Saving students...');
   for(let i=0;i<newS.length;i+=200){const ch=newS.slice(i,i+200),{data,error}=await sb.from('students').insert(ch.map(x=>x.v)).select('id,full_name');
    if(error)throw error;ch.forEach((x,j)=>sMap[x.sid]=data[j].id)}
+  for(const u of upS){const {error}=await sb.from('students').update(u.v).eq('id',u.id);if(error)throw error}
   say('Saving competitions...');
   for(let i=0;i<newC.length;i+=200){const ch=newC.slice(i,i+200),{data,error}=await sb.from('competitions').insert(ch.map(x=>x.v)).select('id,name');
    if(error)throw error;ch.forEach((x,j)=>cMap[x.name.toLowerCase()]=data[j].id)}
@@ -214,7 +272,7 @@ async function doImp(){
   const rows=rs.map(x=>({competition_id:cMap[x.cn],student_id:sMap[x.sid],position:x.pos}));
   for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('results').upsert(rows.slice(i,i+200),{onConflict:'competition_id,student_id'});if(error)throw error}
   await load();
-  say(`Done.\nStudents added: ${newS.length} (already existed: ${skipS})\nCompetitions added: ${newC.length} (already existed: ${skipC})\nResults saved: ${rows.length}`,'');
+  say(`Done.\nStudents added: ${newS.length} (already existed: ${skipS}, profiles updated: ${upS.length})\nCompetitions added: ${newC.length} (already existed: ${skipC})\nResults saved: ${rows.length}`,'');
  }catch(e){say('Import stopped: '+(e.message||e),'err')}
 }
 sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY'){rec=true;newPw()}});
